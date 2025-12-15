@@ -1,0 +1,30 @@
+# Base ----------------------------------------
+numpy
+pandas
+opencv-python
+Pillow
+PyYAML
+requests
+scipy
+
+# Plotting ------------------------------------
+matplotlib
+seaborn
+plotly
+
+# Deep learning -------------------------------------
+torch
+torchvision
+tqdm
+
+# Logging -------------------------------------
+tensorboard
+
+# App -----------------
+gradio
+
+# Jupyter and Interactive Development
+jupyter
+jupyterlab
+ipywidgets
+ipykernel

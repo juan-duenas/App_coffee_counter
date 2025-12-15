@@ -1,2 +1,2 @@
 # gradio_app_cofee_counter
-This is the repo of a demo to interactively demonstrate the capabilities of a computer vision model
+This App developed in Gradio will interactively demonstrate, and compare the capabilities of several models intended to count coffee cherries. The end user should provide an image of a branch with cherries.
