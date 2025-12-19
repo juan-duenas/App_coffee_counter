@@ -13,7 +13,7 @@ def load_yolov5_model(ckpt_path):
     names = model.names
     return model, device, names
 
-ckpt_path = "../../models/yolov5_best.pt"
+ckpt_path = "../models/yolov5_best.pt"
 model, device, names = load_yolov5_model(ckpt_path)
 
 

@@ -5,7 +5,7 @@ from model import img_preproc, dbb, model, names
 
 # Attention: a copy of this script must be inside yolov5 folder to run properly
 
-def predict_image(pil_image):
+def predict_image(pil_image, user_count_str):
     """Performs object detection on a PIL image and returns the annotated image and summary."""
     # 0. Get original image size
     original_w, original_h = pil_image.size
@@ -45,7 +45,20 @@ def predict_image(pil_image):
     # 6. Create summary string
     summary_string = f"Detected {total_detections} cherries with average confidence: {average_confidence:.2f}"
 
-    return annotated_image, summary_string
+    # 7. Compare with user count
+    attention_message = ""
+    if user_count_str:
+        try:
+            user_count = int(user_count_str)
+            if user_count > total_detections:
+                attention_message = "Attention: The model is underestimating the number of cherries"
+            elif user_count < total_detections:
+                attention_message = "Attention: The model is overestimating the number of cherries in this branch"
+        except (ValueError, TypeError):
+            # Handle cases where input is not a valid integer
+            pass
+
+    return annotated_image, summary_string, attention_message
 
 
 with gr.Blocks() as demo:
@@ -60,14 +73,18 @@ with gr.Blocks() as demo:
         inp = gr.Image(label="Input Image", type="pil")
         out_image = gr.Image(label="Annotated Image")
 
+    with gr.Row():
+        user_count = gr.Number(label="How many cherries do you see?", precision=0)
+
     out_summary = gr.Textbox(label="Detection Summary")
+    attention_out = gr.Textbox(label="Model vs. User")
 
     predict_button = gr.Button("Predict count")
 
     predict_button.click(
         fn=predict_image,
-        inputs=[inp],
-        outputs=[out_image, out_summary]
+        inputs=[inp, user_count],
+        outputs=[out_image, out_summary, attention_out]
     )
     
 if __name__ == "__main__":
