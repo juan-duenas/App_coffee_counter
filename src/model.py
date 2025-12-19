@@ -1,16 +1,20 @@
 import torch
 import numpy as np
 from PIL import ImageDraw, ImageFont
-from yolov5.models.experimental import attempt_load   # inside yolov5 folder
+from models.experimental import attempt_load   # inside yolov5 folder
+
+
+# Attention: this script must be inside yolov5 folder to be able to run properly
 
 def load_yolov5_model(ckpt_path):
     """Load a YOLOv5 checkpoint model and return it."""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = attempt_load(ckpt_path)
-    return model, device
+    names = model.names
+    return model, device, names
 
-ckpt_path = "../models/yolo5_best.pt"
-model, device = load_yolov5_model(ckpt_path)
+ckpt_path = "../../models/yolov5_best.pt"
+model, device, names = load_yolov5_model(ckpt_path)
 
 
 def img_preproc(pil_image):
@@ -41,7 +45,7 @@ def img_preproc(pil_image):
 
 def dbb(pil_image, detections, names, line_thickness=2):
     """Draws bounding boxes and labels on a PIL Image."""
-    names = model.names
+    
     draw = ImageDraw.Draw(pil_image)
 
     # Try to load a common font, otherwise use default

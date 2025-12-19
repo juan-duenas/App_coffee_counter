@@ -1,13 +1,18 @@
 import torch
 import gradio as gr
 from utils.general import non_max_suppression as nms
-from src.model import img_preproc, dbb, model, names 
+from model import img_preproc, dbb, model, names 
 
+# Attention: a copy of this script must be inside yolov5 folder to run properly
 
 def predict_image(pil_image):
     """Performs object detection on a PIL image and returns the annotated image and summary."""
+    # 0. Get original image size
+    original_w, original_h = pil_image.size
+
     # 1. Preprocess the image for model inference
     input_tensor, resized_pil_image = img_preproc(pil_image)
+    resized_w, resized_h = resized_pil_image.size
 
     # 2. Perform inference
     with torch.no_grad():
@@ -15,24 +20,30 @@ def predict_image(pil_image):
 
     # 3. Apply non-max suppression
     conf_thres = 0.25
-    iou_thres = 0.50
+    iou_thres = 0.25
     detections = nms(predictions, conf_thres, iou_thres)[0]
 
-    # 4. Calculate detection statistics
+    # 4. Calculate detection statistics and scale bounding boxes
     total_detections = 0
     sum_confidences = 0.0
 
-    if detections is not None:
+    if detections is not None and len(detections):
         total_detections = len(detections)
-        sum_confidences = torch.sum(detections[:, 4]).item() # Confidence scores are at index 4
+        sum_confidences = torch.sum(detections[:, 4]).item()
+
+        # Scale bounding boxes to original image size
+        scale_w = original_w / resized_w
+        scale_h = original_h / resized_h
+        detections[:, [0, 2]] *= scale_w
+        detections[:, [1, 3]] *= scale_h
 
     average_confidence = sum_confidences / total_detections if total_detections > 0 else 0.0
 
-    # 5. Draw bounding boxes on the resized image
-    annotated_image = dbb(resized_pil_image.copy(), detections, names, line_thickness=2)
+    # 5. Draw bounding boxes on the original image
+    annotated_image = dbb(pil_image.copy(), detections, names, line_thickness=2)
 
     # 6. Create summary string
-    summary_string = f"Detected {total_detections} objects with average confidence: {average_confidence:.2f}"
+    summary_string = f"Detected {total_detections} cherries with average confidence: {average_confidence:.2f}"
 
     return annotated_image, summary_string
 
@@ -40,8 +51,8 @@ def predict_image(pil_image):
 with gr.Blocks() as demo:
     gr.Markdown(
     """
-    ## Coffee Yield Prediction Tool
-    Upload an image of a coffee tree branch for the model to count the number of cherries.
+    ## Croppie (YOLOv5 model for coffee cherry detection)
+    Upload an image of a coffee tree branch. The model will attempt to count the number of cherries on it.
     """
     )
 
@@ -60,5 +71,4 @@ with gr.Blocks() as demo:
     )
     
 if __name__ == "__main__":
-    demo.launch()
-
+    demo.launch(share=False)
