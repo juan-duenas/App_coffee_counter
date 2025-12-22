@@ -1,9 +1,9 @@
 import torch
 import gradio as gr
+import config  # Ensures paths are set up correctly
 from utils.general import non_max_suppression as nms
 from model import img_preproc, dbb, model, names 
-
-# Attention: a copy of this script must be inside yolov5 folder to run properly
+import os
 
 def predict_image(pil_image, user_count_str):
     """Performs object detection on a PIL image and returns the annotated image and summary."""
@@ -86,6 +86,16 @@ with gr.Blocks() as demo:
         inputs=[inp, user_count],
         outputs=[out_image, out_summary, attention_out]
     )
-    
+
+    # Get paths to example images
+    example_image_paths = [
+        str(p) for p in config.SAMPLE_IMAGES_DIR.glob("*") 
+        if p.suffix.lower() in ['.jpg', '.jpeg', '.png']
+    ]
+
+    gr.Examples(
+        examples=example_image_paths,
+        inputs=inp
+    )
 if __name__ == "__main__":
     demo.launch(share=False)

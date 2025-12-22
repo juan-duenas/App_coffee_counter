@@ -1,10 +1,9 @@
 import torch
 import numpy as np
 from PIL import ImageDraw, ImageFont
+from config import YOLOV5_CKPT_PATH
 from models.experimental import attempt_load   # inside yolov5 folder
 
-
-# Attention: this script must be inside yolov5 folder to be able to run properly
 
 def load_yolov5_model(ckpt_path):
     """Load a YOLOv5 checkpoint model and return it."""
@@ -13,8 +12,7 @@ def load_yolov5_model(ckpt_path):
     names = model.names
     return model, device, names
 
-ckpt_path = "../models/yolov5_best.pt"
-model, device, names = load_yolov5_model(ckpt_path)
+model, device, names = load_yolov5_model(YOLOV5_CKPT_PATH)
 
 
 def img_preproc(pil_image):
