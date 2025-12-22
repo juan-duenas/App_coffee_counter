@@ -1,9 +1,8 @@
 import torch
 import gradio as gr
 import config  # Ensures paths are set up correctly
-from utils.general import non_max_suppression as nms
-from model import img_preproc, dbb, model, names 
-import os
+from utils.general import non_max_suppression as nms # type: ignore # inside yolov5 folder
+from model import img_preproc, dbb, model, names
 
 def predict_image(pil_image, user_count_str):
     """Performs object detection on a PIL image and returns the annotated image and summary."""

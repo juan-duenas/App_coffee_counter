@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from PIL import ImageDraw, ImageFont
 from config import YOLOV5_CKPT_PATH
-from models.experimental import attempt_load   # inside yolov5 folder
+from models.experimental import attempt_load  #type: ignore # inside yolov5 folder 
 
 
 def load_yolov5_model(ckpt_path):
