@@ -8,4 +8,4 @@ Users are asked to upload an example image of a coffee branch bearing fruits (ch
 
 ## Requirements
 
-**Attention** For these scripts to be able to run correctly, they must be executed from a locally cloned yolov5 repo as root.
+**Attention** For these scripts to be able to run correctly, they require functions sourced from YOLOv5 repo. Make sure you clone a copy of that repo and define the paths correctly on each script via the `config.py` file
