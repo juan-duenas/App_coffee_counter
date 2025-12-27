@@ -1,4 +1,5 @@
 .venv/
+/.vscode/
 .gradio
 
 /data/
@@ -6,4 +7,7 @@
 /models/
 /yolov5/
 
+.env
 __pycache__
+
+*.ipynb

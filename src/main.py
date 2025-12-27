@@ -1,17 +1,27 @@
-from config import SAMPLE_IMAGES_DIR
-import os
+import config
 
 def main():
     print("Hello from app-coffee-counter!")
-    print(f"Sample images are located in: {SAMPLE_IMAGES_DIR}")
+    print(f"Sample images are located in: {config.SAMPLE_IMAGES_DIR}")
     
-    # List sample images
-    if SAMPLE_IMAGES_DIR.exists() and SAMPLE_IMAGES_DIR.is_dir():
+    # Check example images directory is found
+    if config.SAMPLE_IMAGES_DIR.exists() and config.SAMPLE_IMAGES_DIR.is_dir():
         print("Sample images found:")
-        for image_file in os.listdir(SAMPLE_IMAGES_DIR):
-            print(f"- {image_file}")
     else:
         print("Sample images directory not found or is not a directory.")
+
+    # Check if local model directory is present
+    if config.MODELS_DIR.exists() and config.MODELS_DIR.is_dir():
+        print("local checkpoint found")
+    else:
+        print("local checkpoint directory not found, or is not a directory")
+
+    # Check if yolov5 repo is downloaded locally and is in root
+    if config.YOLOV5_DIR.exists() and config.YOLOV5_DIR.is_dir():
+        print("local copy of YOLO v5 repo was found")
+    else:
+        print("A local copy of YOLO v5 repo was not found in the root directory.")
+
 
 
 if __name__ == "__main__":
