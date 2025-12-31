@@ -20,11 +20,11 @@ def infer_2_app(input_img):
     print("Model loaded successfully.")
 
     # 2nd. Model inference
-    img_size = 640  # Model input size
+    #img_size = 640  # Model input size
     model.eval()
     with torch.no_grad():
-        results = model(input_img, img_size)
-
+        #results = model(input_img, img_size)
+        results = model(input_img)
     # 3rd. Convert pred image to Gradio-compatible format
     output_img = Image.fromarray(results.render()[0])
 

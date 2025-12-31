@@ -116,7 +116,7 @@ def countgd(pil_image, object_label: str = "object", click_points=None):
         except (ValueError, TypeError):
             count = 0
         
-        return detected_instances, count, f"Detected {count} {object_label}(s)", box_info_text
+        return detected_instances, f"Detected {count} {object_label}(s)", box_info_text
         
     except Exception as e:
         return pil_image, 0, f"Error: {str(e)}", f"Error processing: {str(e)}"
