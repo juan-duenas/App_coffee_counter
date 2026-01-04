@@ -1,38 +1,14 @@
 import gradio as gr
 import config  # Ensures paths are set up correctly
 from croppie import infer_2_app
-from countgd import countgd, draw_boxes_on_image
-from PIL import ImageDraw
-
-
-def update_summary(image, points, text):
-    """Generate summary of current configuration."""
-    lines = []
-    
-    if image is not None:
-        w, h = image.size if hasattr(image, 'size') else ("?", "?")
-        lines.append(f"- **Image**: Loaded ({w}x{h} pixels)")
-    else:
-        lines.append("- **Image**: ⚠️ Not loaded")
-    
-    num_boxes = len(points) // 2 if points else 0
-    if num_boxes > 0:
-        lines.append(f"- **Visual Examples**: {num_boxes} bounding box(es)")
-    else:
-        lines.append("- **Visual Examples**: None defined")
-    
-    if text and text.strip():
-        lines.append(f"- **Text Description**: \"{text.strip()}\"")
-    else:
-        lines.append("- **Text Description**: Not provided")
-    
-    return "\n".join(lines)
+from countgd import countgd, draw_boxes_on_image, draw_polygon_preview, apply_polygon_crop, update_summary
 
 with gr.Blocks() as demo:
     gr.Markdown(
     """
-    # Coffee fuit Detection & Counting
-    Compare two models for counting coffee fruits based on branch images.
+    # Coffee berries detection & counting
+    This UI showcases two open source models that help to get coffee yield estimates based on images of branches with cherries on them. 
+    Credits to the authors of each model can be found on the respective tabs.
     """
     )
 
@@ -40,27 +16,30 @@ with gr.Blocks() as demo:
         # Tab 1: YOLOv5 Detector (custom trained model)
         with gr.Tab("Croppie"):
             gr.Markdown("""## Closed world object detection model.
-                            The model was trained on images of Coffee tree branches. Architecture is based on YOLOv5.
-                            This model only takes visual inputs as a reference and is not interactive.
+                            This CNN was trained based on a YOLOv8 architecture and it was focused on Arabica Coffee (*Coffea arabica* L.) cultivars. Additional details of training are described in this [publication](https://doi.org/10.34133/plantphenomics.0165).
+                            This demo uses a similar CNN trained on an earlier version of YOLO (v5). The checkpoints of that model are available [here](https://github.com/j-river1/Croppie)
+                            .
                         """)
             with gr.Row():
                     with gr.Accordion("Instructions:"):
                                 gr.Markdown("""
-                                    1. Input an image using the interactive buttons or one available in the examples area.
+                                    1. Upload an input image using the interactive buttons or click on one of the examples below for automatic upload.
                                     2. Click on "Count Objects" to collect the results.      
                                     """)    
             with gr.Row():
                 inp_yolo = gr.Image(label="Input image", type="pil")
                 out_image_yolo = gr.Image(label="Annotated image")
 
-            out_summary = gr.Textbox(label="Detection summary")
+            with gr.Row():
+                out_summary = gr.Textbox(label="Detection summary")
+                out_histogram = gr.Plot(label="Confidence Distribution")
 
-            predict_button = gr.Button("Count Objects")
+            predict_button = gr.Button("Count Objects", variant="primary")
 
             predict_button.click(
                 fn=infer_2_app,
                 inputs=[inp_yolo],
-                outputs=[out_image_yolo, out_summary]
+                outputs=[out_image_yolo, out_summary, out_histogram]
             )
 
             # Get paths to example images
@@ -74,108 +53,11 @@ with gr.Blocks() as demo:
                     inputs=inp_yolo
                 )
 
-        # Tab 2: CountGD Generic Counter (Plain interface)
-        with gr.Tab("CountGD Plain"):
-            gr.Markdown("""## Open world object detection model taking text (in English), visual exemplars, or both as prompts.
-                           The underlying model is reached via Gradio client. The original UI can be found [here](https://huggingface.co/spaces/nikigoli/countgd).
-                        """)
-            
-            # State to store click points
-            click_points = gr.State([])
-            
-            with gr.Row():
-                with gr.Accordion("Instructions:"):
-                            gr.Markdown("""
-                                1. Input an image using the interactive buttons or one available in the examples area.
-                                2. Use your mouse to click on the input image to define vizual examples. 
-                                3. Vizualise the user's examples in the preview image to the right.
-                                4. Click "Clear Boxes" button if not satisfied.
-                                5. Optionally input a text description of the target object.
-                                6. Click on "Count Objects" to collect the results.      
-                                """)
-                            
-            with gr.Row():
-                inp_countgd = gr.Image(label="Click to select box corners (2 clicks = 1 box)", type="pil")
-                preview_image = gr.Image(label="Preview with boxes", type="pil")                  
-                    
-            with gr.Row():
-                object_label = gr.Textbox(
-                label="Object to count", 
-                placeholder="Optional description of target object; e.g. fruit"
-                )
-                
-                with gr.Column():    
-                    clear_boxes_button = gr.Button("Clear Boxes")
-                    count_button = gr.Button("Count Objects", variant="primary")
-
-            with gr.Row():
-                out_image_countgd = gr.Image(label="Detected Instances")
-                
-                with gr.Column():
-                    out_message = gr.Textbox(label="Predicted count")
-                    box_info = gr.Textbox(label="Detection Boxes Info", interactive=False)
-            
-            def handle_click(image, points, evt: gr.SelectData):
-                """Handle image clicks to build bounding boxes."""
-                if image is None:
-                    return points, None, "No boxes defined"
-                
-                x, y = evt.index[0], evt.index[1]
-                new_points = points + [[x, y]]
-                
-                # Draw preview with current points/boxes
-                preview = draw_boxes_on_image(image, new_points)
-                
-                num_boxes = len(new_points) // 2
-                pending = len(new_points) % 2
-                info = f"{num_boxes} box(es) defined"
-                if pending:
-                    info += ", 1 point pending (click again to complete box)"
-                
-                return new_points, preview, info
-            
-            def clear_boxes(image):
-                """Clear all defined boxes."""
-                return [], image, "Boxes cleared"
-            
-            def reset_on_new_image(image):
-                """Reset points when a new image is uploaded."""
-                return [], image, "Upload complete. Click to define boxes."
-
-            inp_countgd.select(
-                fn=handle_click,
-                inputs=[inp_countgd, click_points],
-                outputs=[click_points, preview_image, box_info]
-            )
-            
-            inp_countgd.change(
-                fn=reset_on_new_image,
-                inputs=[inp_countgd],
-                outputs=[click_points, preview_image, box_info]
-            )
-            
-            clear_boxes_button.click(
-                fn=clear_boxes,
-                inputs=[inp_countgd],
-                outputs=[click_points, preview_image, box_info]
-            )
-
-            count_button.click(
-                fn=countgd,
-                inputs=[inp_countgd, object_label, click_points],
-                outputs=[out_image_countgd, out_message, box_info]
-            )
-            
-            if example_image_paths:
-                gr.Examples(
-                    examples=example_image_paths,
-                    inputs=inp_countgd
-                )
-        
-        # Tab 3: CountGD with Walkthrough
-        with gr.Tab("CountGD Walkthrough"):
+        # Tab 2: CountGD with Walkthrough
+        with gr.Tab("CountGD"):
             gr.Markdown("""## Open world object detection model with guided workflow.
                            Follow the step-by-step walkthrough to crop, annotate, and count objects.
+                           The underlying model is reached via Gradio client. The original UI can be found [here](https://huggingface.co/spaces/nikigoli/countgd).
                         """)
             
             # State variables for walkthrough
@@ -183,22 +65,25 @@ with gr.Blocks() as demo:
             wt_crop_coords = gr.State([])
             wt_working_image = gr.State(None)
             
-            with gr.Accordion("ℹ️ Walkthrough Instructions", open=True):
+            with gr.Accordion("Walkthrough Instructions", open=True):
                 gr.Markdown("""
                     Follow the step-by-step workflow below to count objects in your image:
-                    - **Step 1**: Upload an image and optionally crop to focus on a target area
-                    - **Step 2**: Draw bounding boxes around example objects you want to count
-                    - **Step 3**: Optionally add a text description of the target object
-                    - **Step 4**: Submit to get counting results
+                    1. Upload an image and optionally crop to focus on a target area
+                    2. Draw bounding boxes around example objects you want to count
+                    3. Optionally add a text description of the target object
+                    4. Submit to get counting results
                 """)
             
             with gr.Walkthrough(selected=1) as walkthrough:
                 
                 # ============== STEP 1: Input Image & Crop ==============
                 with gr.Step("Step 1: Input Image & Crop", id=1):
-                    gr.Markdown("""### 📷 Upload and Crop Image
-                    Upload an image from your device or select from examples below. 
-                    Optionally, click twice on the image to define a crop region (any two diagonal corners).
+                    gr.Markdown("""### 📷 Upload and Clip Image
+                    1. Upload an image from your device or select from examples below. 
+                    2. Optionally, click multiple times on the image to define a polygon clip region.
+                    3. Click at least 3 points to form a polygon. The region inside will be extracted.
+                    4. Check preview of polygon on image to the right. 
+                    5. Decide on the next actions with the buttons below: start again, clip, continue without clipped image.            
                     """)
                     
                     with gr.Row():
@@ -216,19 +101,20 @@ with gr.Blocks() as demo:
                             
                         with gr.Column(scale=1):
                             wt_crop_preview = gr.Image(
-                                label="Crop Preview (green box shows selected area)",
+                                label="Clip Preview (green polygon shows selected area)",
                                 type="pil",
                                 height=400,
                                 interactive=False
                             )
                     
                     with gr.Row():
-                        wt_clear_crop_btn = gr.Button("🔄 Clear Crop Selection", size="sm")
-                        wt_apply_crop_btn = gr.Button("✂️ Apply Crop", variant="secondary")
+                        wt_clear_crop_btn = gr.Button("🔄 Clear Polygon", size="sm")
+                        wt_close_polygon_btn = gr.Button("🔷 Close Polygon", variant="secondary")
+                        wt_apply_crop_btn = gr.Button("✂️ Apply Clip", variant="secondary")
                         wt_next_step1_btn = gr.Button("Next: Draw Boxes →", variant="primary")
                     
                     wt_cropped_image_display = gr.Image(
-                        label="Cropped Image (will be used in next steps)",
+                        label="Clipped Image (will be used in next steps)",
                         type="pil",
                         height=300,
                         visible=False
@@ -343,55 +229,41 @@ with gr.Blocks() as demo:
             
             # --- Step 1 handlers ---
             def wt_handle_step1_click(image, state, evt: gr.SelectData):
-                """Handle clicks on step 1 image for crop selection."""
+                """Handle clicks on step 1 image for polygon selection."""
                 if image is None:
                     return [], None, "No image loaded"
                 
                 x, y = evt.index[0], evt.index[1]
                 new_state = state + [x, y]
+                num_points = len(new_state) // 2
+                preview = draw_polygon_preview(image, new_state, closed=False)
                 
-                if len(new_state) > 4:
-                    new_state = [x, y]
+                if num_points == 1:
+                    return new_state, preview, f"Point 1 at ({x}, {y}). Click to add more points (min 3 for polygon)."
+                elif num_points == 2:
+                    return new_state, preview, f"{num_points} points defined. Add at least 1 more point to form a polygon."
+                else:
+                    return new_state, preview, f"✓ {num_points} points defined. Add more points or click 'Close Polygon' to complete."
+            
+            def wt_close_polygon(image, coords):
+                """Close the polygon and show preview."""
+                if image is None:
+                    return coords, None, "No image loaded"
                 
-                preview = image.copy()
-                draw = ImageDraw.Draw(preview)
+                num_points = len(coords) // 2
+                if num_points < 3:
+                    return coords, draw_polygon_preview(image, coords, closed=False), f"Need at least 3 points. Currently have {num_points}."
                 
-                if len(new_state) == 2:
-                    x1, y1 = new_state[0], new_state[1]
-                    r = 8
-                    draw.ellipse([x1 - r, y1 - r, x1 + r, y1 + r], fill="lime", outline="white", width=2)
-                    return new_state, preview, f"First corner at ({x1}, {y1}). Click any diagonal corner."
-                elif len(new_state) >= 4:
-                    x1, y1, x2, y2 = new_state[0], new_state[1], new_state[2], new_state[3]
-                    left, right = min(x1, x2), max(x1, x2)
-                    top, bottom = min(y1, y2), max(y1, y2)
-                    draw.rectangle([left, top, right, bottom], outline="lime", width=4)
-                    return new_state, preview, f"✓ Crop area: ({left}, {top}) to ({right}, {bottom}). Click 'Apply Crop' or continue."
-                
-                return new_state, preview, "Click on the image to define crop area"
+                preview = draw_polygon_preview(image, coords, closed=True)
+                return coords, preview, f"✓ Polygon closed with {num_points} points. Click 'Apply Clip' to extract region."
             
             def wt_clear_crop_selection(image):
-                return [], image, "Crop selection cleared. Click to define new area."
+                return [], image, "Polygon cleared. Click to define new points."
             
             def wt_apply_crop(image, coords):
-                if image is None:
-                    return None, image, "No image to crop", gr.update(visible=False)
-                
-                if len(coords) < 4:
-                    return image, image, "No crop area defined. Using full image.", gr.update(visible=False)
-                
-                x1, y1, x2, y2 = coords[0], coords[1], coords[2], coords[3]
-                left, right = min(x1, x2), max(x1, x2)
-                top, bottom = min(y1, y2), max(y1, y2)
-                
-                if right - left < 20 or bottom - top < 20:
-                    return image, image, "Crop area too small. Using full image.", gr.update(visible=False)
-                
-                try:
-                    cropped = image.crop((left, top, right, bottom))
-                    return cropped, cropped, f"✓ Image cropped to ({left}, {top}) - ({right}, {bottom})", gr.update(visible=True)
-                except Exception as e:
-                    return image, image, f"Crop failed: {e}", gr.update(visible=False)
+                """Apply polygon clipping - wrapper for UI integration."""
+                cropped, status, success = apply_polygon_crop(image, coords)
+                return cropped, cropped, status, gr.update(visible=success)
             
             def wt_go_to_step2(image, cropped):
                 final_image = cropped if cropped is not None else image
@@ -404,7 +276,7 @@ with gr.Blocks() as demo:
             def wt_reset_on_new_upload(image):
                 if image is None:
                     return [], None, "Upload an image to begin"
-                return [], image, "Image loaded. Click to define crop area (optional)."
+                return [], image, "Image loaded. Click to define polygon points (optional)."
             
             # Connect Step 1 events
             wt_input_image_step1.select(
@@ -422,6 +294,12 @@ with gr.Blocks() as demo:
             wt_clear_crop_btn.click(
                 fn=wt_clear_crop_selection,
                 inputs=[wt_input_image_step1],
+                outputs=[wt_crop_coords, wt_crop_preview, wt_crop_status]
+            )
+            
+            wt_close_polygon_btn.click(
+                fn=wt_close_polygon,
+                inputs=[wt_input_image_step1, wt_crop_coords],
                 outputs=[wt_crop_coords, wt_crop_preview, wt_crop_status]
             )
             
@@ -571,7 +449,7 @@ with gr.Blocks() as demo:
                 ]
             )
         
-        #Tab 4 Original CountGD app using function load
+        #Tab 3 Original CountGD app using function load
         #with gr.Tab("Original CountGD"):
         #     gr.Markdown("""## Open world object detection model taking text (in English), visual exemplars, or both as prompts.
         #                """)

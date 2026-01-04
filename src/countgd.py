@@ -1,7 +1,123 @@
 import tempfile
 from pathlib import Path
 from gradio_client import Client, handle_file
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
+
+
+def update_summary(image, points, text):
+    """Generate summary of current configuration for CountGD workflow."""
+    lines = []
+    
+    if image is not None:
+        w, h = image.size if hasattr(image, 'size') else ("?", "?")
+        lines.append(f"- **Image**: Loaded ({w}x{h} pixels)")
+    else:
+        lines.append("- **Image**: ⚠️ Not loaded")
+    
+    num_boxes = len(points) // 2 if points else 0
+    if num_boxes > 0:
+        lines.append(f"- **Visual Examples**: {num_boxes} bounding box(es)")
+    else:
+        lines.append("- **Visual Examples**: None defined")
+    
+    if text and text.strip():
+        lines.append(f"- **Text Description**: \"{text.strip()}\"")
+    else:
+        lines.append("- **Text Description**: Not provided")
+    
+    return "\n".join(lines)
+
+
+def draw_polygon_preview(image, points, closed=False):
+    """Draw polygon preview on image for crop selection.
+    
+    Args:
+        image: PIL Image
+        points: flat list of coordinates [x1, y1, x2, y2, ...]
+        closed: whether to close the polygon and fill it
+    """
+    if image is None:
+        return None
+        
+    preview = image.copy()
+    draw = ImageDraw.Draw(preview)
+    
+    num_points = len(points) // 2
+    
+    # Draw points as circles
+    r = 6
+    for i in range(num_points):
+        px, py = points[i * 2], points[i * 2 + 1]
+        color = "lime" if i == 0 else "cyan"
+        draw.ellipse([px - r, py - r, px + r, py + r], fill=color, outline="white", width=2)
+    
+    # Draw lines connecting points
+    if num_points >= 2:
+        line_points = [(points[i * 2], points[i * 2 + 1]) for i in range(num_points)]
+        draw.line(line_points, fill="lime", width=3)
+        
+        # Close the polygon if requested
+        if closed and num_points >= 3:
+            draw.line([line_points[-1], line_points[0]], fill="lime", width=3)
+            # Fill with semi-transparent overlay
+            overlay = Image.new('RGBA', image.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            overlay_draw.polygon(line_points, fill=(0, 255, 0, 50), outline="lime")
+            preview = preview.convert('RGBA')
+            preview = Image.alpha_composite(preview, overlay)
+            preview = preview.convert('RGB')
+    
+    return preview
+
+
+def apply_polygon_crop(image, coords):
+    """Apply polygon clipping to extract the region inside the polygon.
+    
+    Args:
+        image: PIL Image to crop
+        coords: flat list of coordinates [x1, y1, x2, y2, ...]
+        
+    Returns:
+        tuple: (cropped_image, status_message, success_bool)
+    """
+    if image is None:
+        return None, "No image to clip", False
+    
+    num_points = len(coords) // 2
+    if num_points < 3:
+        return image, "Need at least 3 points for polygon. Using full image.", False
+    
+    try:
+        # Convert coords to list of tuples
+        polygon_points = [(coords[i * 2], coords[i * 2 + 1]) for i in range(num_points)]
+        
+        # Calculate bounding box of polygon
+        xs = [p[0] for p in polygon_points]
+        ys = [p[1] for p in polygon_points]
+        left, right = min(xs), max(xs)
+        top, bottom = min(ys), max(ys)
+        
+        if right - left < 20 or bottom - top < 20:
+            return image, "Polygon area too small. Using full image.", False
+        
+        # Create mask from polygon
+        mask = Image.new('L', image.size, 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.polygon(polygon_points, fill=255)
+        
+        # Apply mask to image (set outside pixels to white)
+        result = image.convert('RGBA')
+        background = Image.new('RGBA', image.size, (255, 255, 255, 255))
+        result = Image.composite(result, background, mask)
+        
+        # Crop to bounding box of polygon
+        result = result.crop((left, top, right, bottom))
+        result = result.convert('RGB')
+        
+        return result, f"✓ Image clipped using {num_points}-point polygon", True
+    except Exception as e:
+        return image, f"Clip failed: {e}", False
+
 
 def remote_hf():
 

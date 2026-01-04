@@ -1,11 +1,17 @@
-# App to showcase coffee yield estimation models
+# Coffee berry detection and counting
 
-This App is intended to demonstrate and compare the capabilities of several deep learning models to count coffee fuits (cheerries). The app was build with [Gradio](https://www.gradio.app/).
+This UI features two computer vision models that can estimate coffee yield based on images of berry-laden branches. The interface was built using [Gradio](https://www.gradio.app/).
 
-The initial benchmark is a [model](https://github.com/j-river1/Croppie/tree/main) trained with [YOLO v5](https://github.com/ultralytics/yolov5).
+## Croppie
 
-Users are asked to upload an example image of a coffee branch bearing fruits (cherries). Then several models will attempt to count the number of detected fruits in the branch. In addition to this, some basic descriptive measurements will be presented. For instance, the user is asked to count the fruits on the branch and input a number. Then the app compares the result obtained with the model with that of the user.
+A classic CNN approach to count coffee berries.
 
-## Requirements
+This CNN was trained using a YOLOv8 architecture with a focus on Arabica coffee (*Coffea arabica* L.) cultivars. Further training details are provided in this publication. This demo uses a similar CNN, which was trained on [v5](https://github.com/ultralytics/yolov5) of YOLO, whose checkpoints are available [here](https://github.com/j-river1/Croppie).
 
-**Attention** For these scripts to be able to run correctly, they require functions sourced from YOLOv5 repo. Make sure you clone a copy of that repo and define the paths correctly on each script via the `config.py` file
+**Attention!**: Croppie's correct behaviour depends on functions from YOLOv5. If you want to run this UI locally, clone a copy of YOLOv5 repo and change the paths in the `config.py` file if necessary.
+
+## CountGD remix.
+Applying a general-purpose counting model to a specific task.
+
+CountGD is an open-world object counting model that uses images and text as prompts. CountGD is based... The original model's paper and UI can be found [here](https://huggingface.co/spaces/nikigoli/countgd). CountGD is queried here via a Gradio client to avoid conflicts with older Gradio versions and their dependencies.                           
+
