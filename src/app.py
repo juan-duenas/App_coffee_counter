@@ -1,13 +1,130 @@
 import gradio as gr
+import re
 import config  # Ensures paths are set up correctly
 from croppie import infer_2_app
 from countgd import countgd, draw_boxes_on_image, draw_polygon_preview, apply_polygon_crop, update_summary
+
+
+def get_count_from_croppie(pil_image):
+    """
+    Run Croppie (YOLOv5) inference and return the detection count.
+    """
+    if pil_image is None:
+        return 0
+    try:
+        _, summary_string, _ = infer_2_app(pil_image)
+        # Parse count from summary string like "Detected 42 berries..."
+        match = re.search(r"Detected (\d+)", summary_string)
+        if match:
+            return int(match.group(1))
+        return 0
+    except Exception as e:
+        print(f"Error in Croppie inference: {e}")
+        return 0
+
+
+def get_count_from_countgd(pil_image, object_label="coffee fruit"):
+    """
+    Run CountGD inference and return the detection count.
+    """
+    if pil_image is None:
+        return 0
+    try:
+        _, count_string, _ = countgd(pil_image, object_label, [])
+        # Parse count from string like "Detected 42 coffee fruit(s)"
+        match = re.search(r"Detected (\d+)", count_string)
+        if match:
+            return int(match.group(1))
+        return 0
+    except Exception as e:
+        print(f"Error in CountGD inference: {e}")
+        return 0
+
+
+def yield_prediction(image1, image2, image3, model_choice, object_label, productive_branches, num_trees):
+    """
+    Process three images through the selected model, calculate mean fruit count,
+    and compute yield predictions.
+    
+    Returns:
+        - results_text: Summary of yield predictions
+        - counts_text: Individual image counts
+    """
+    images = [image1, image2, image3]
+    valid_images = [img for img in images if img is not None]
+    
+    if len(valid_images) == 0:
+        return "⚠️ Please upload at least one image.", ""
+    
+    # Get counts from selected model
+    counts = []
+    count_details = []
+    
+    for i, img in enumerate(images):
+        if img is None:
+            count_details.append(f"Image {i+1}: Not provided")
+            continue
+        
+        if model_choice == "Croppie (YOLOv5)":
+            count = get_count_from_croppie(img)
+        else:  # CountGD
+            label = object_label.strip() if object_label and object_label.strip() else "coffee fruit"
+            count = get_count_from_countgd(img, label)
+        
+        counts.append(count)
+        count_details.append(f"Image {i+1}: {count} fruits detected")
+    
+    if len(counts) == 0:
+        return "⚠️ No valid images processed.", ""
+    
+    # Calculate average fruit count per branch (C)
+    C = sum(counts) / len(counts)
+    
+    # Get productive branches (P) - default to 30.0 if not provided
+    try:
+        P = float(productive_branches) if productive_branches else 30.0
+    except (ValueError, TypeError):
+        P = 30.0
+    
+    # Get total trees (F) - None if not provided
+    F = None
+    if num_trees:
+        try:
+            F = int(num_trees)
+        except (ValueError, TypeError):
+            F = None
+    
+    # Calculate total fruit load per tree (T)
+    T = P * C
+    
+    # Calculate total field yield (Y) if F is provided
+    Y = T * F if F is not None else None
+    
+    # Build results text
+    results = []
+    results.append("## 🌿 Yield Prediction Results\n")
+    results.append(f"**Average fruit per branch (C):** {C:.1f}")
+    results.append(f"**Productive branches per tree (P):** {P:.1f}")
+    results.append(f"**Total berry load per tree (T = P × C):** {T:.1f}")
+    
+    if Y is not None:
+        results.append(f"**Total trees in field (F):** {F:,}")
+        results.append(f"**Total estimated yield in field (Y = T × F):** {Y:,.0f} fruits")
+    else:
+        results.append("**Total trees in field (F):** Not provided")
+        results.append("**Total estimated yield in field (Y):** N/A (provide tree count to calculate)")
+    
+    counts_text = "\n".join(count_details)
+    counts_text += f"\n\n**Images analyzed:** {len(counts)}"
+    
+    return "\n\n".join(results), counts_text
+
 
 with gr.Blocks() as demo:
     gr.Markdown(
     """
     # Coffee berries detection & counting
-    This UI showcases two open source models that help to get coffee yield estimates based on images of branches with cherries on them. 
+    This UI showcases two open source models that can estimate coffee yield based on images of branches with cherries on them. 
     Credits to the authors of each model can be found on the respective tabs.
     """
     )
@@ -15,7 +132,7 @@ with gr.Blocks() as demo:
     with gr.Tabs():
         # Tab 1: YOLOv5 Detector (custom trained model)
         with gr.Tab("Croppie"):
-            gr.Markdown("""## Closed world object detection model.
+            gr.Markdown("""## Classic CNN approach.
                             This CNN was trained based on a YOLOv8 architecture and it was focused on Arabica Coffee (*Coffea arabica* L.) cultivars. Additional details of training are described in this [publication](https://doi.org/10.34133/plantphenomics.0165).
                             This demo uses a similar CNN trained on an earlier version of YOLO (v5). The checkpoints of that model are available [here](https://github.com/j-river1/Croppie)
                             .
@@ -449,11 +566,100 @@ with gr.Blocks() as demo:
                 ]
             )
         
-        #Tab 3 Original CountGD app using function load
-        #with gr.Tab("Original CountGD"):
-        #     gr.Markdown("""## Open world object detection model taking text (in English), visual exemplars, or both as prompts.
-        #                """)
-        #     gr.load("nikigoli/countgd", src="spaces")
+        # ============== Tab 3: Yield Prediction ==============
+        with gr.Tab("Yield Prediction"):
+            gr.Markdown("""## 🌿 Coffee Yield Estimation
+            Upload three images of coffee branches to estimate yield based on fruit detection.
+            The model will count fruits in each image and calculate:
+            - **C**: Average number of fruits per branch
+            - **T**: Total fruit load per tree (T = P × C)
+            - **Y**: Total yield in the field (Y = T × F), if tree count is provided
+            """)
+            
+            with gr.Accordion("Instructions:", open=True):
+                gr.Markdown("""
+                    1. Upload three images of coffee branches (or select from examples).
+                    2. Choose the detection model to use.
+                    3. Optionally provide:
+                       - **Productive branches (P)**: Average number of productive branches per tree (default: 30.0)
+                       - **Total trees (F)**: Number of trees in your field
+                    4. Click "Calculate Yield" to get predictions.
+                """)
+            
+            with gr.Row():
+                model_selector = gr.Radio(
+                    choices=["Croppie (YOLOv5)", "CountGD"],
+                    value="Croppie (YOLOv5)",
+                    label="Select Detection Model"
+                )
+                countgd_label = gr.Textbox(
+                    label="Object Label (CountGD only)",
+                    placeholder="e.g., coffee fruit",
+                    value="coffee fruit",
+                    visible=True
+                )
+            
+            gr.Markdown("### 📷 Upload Three Branch Images")
+            with gr.Row():
+                yield_image1 = gr.Image(label="Image 1", type="pil", height=250)
+                yield_image2 = gr.Image(label="Image 2", type="pil", height=250)
+                yield_image3 = gr.Image(label="Image 3", type="pil", height=250)
+            
+            # Example images for easy selection
+            if example_image_paths:
+                gr.Markdown("**Example Images (click to load):**")
+                with gr.Row():
+                    gr.Examples(
+                        examples=example_image_paths[:3] if len(example_image_paths) >= 3 else example_image_paths,
+                        inputs=yield_image1,
+                        label="Load to Image 1"
+                    )
+                with gr.Row():
+                    gr.Examples(
+                        examples=example_image_paths[:3] if len(example_image_paths) >= 3 else example_image_paths,
+                        inputs=yield_image2,
+                        label="Load to Image 2"
+                    )
+                with gr.Row():
+                    gr.Examples(
+                        examples=example_image_paths[:3] if len(example_image_paths) >= 3 else example_image_paths,
+                        inputs=yield_image3,
+                        label="Load to Image 3"
+                    )
+            
+            gr.Markdown("### 🌳 Field Parameters")
+            with gr.Row():
+                productive_branches_input = gr.Number(
+                    label="Productive branches per tree (P)",
+                    value=30.0,
+                    info="Average number of productive branches per tree. Default: 30.0",
+                    precision=1
+                )
+                total_trees_input = gr.Number(
+                    label="Total trees in field (F)",
+                    value=None,
+                    info="Optional: Total number of trees to calculate field yield",
+                    precision=0
+                )
+            
+            yield_button = gr.Button("🔍 Calculate Yield", variant="primary", size="lg")
+            
+            gr.Markdown("### 📊 Results")
+            with gr.Row():
+                with gr.Column(scale=1):
+                    yield_results = gr.Markdown(label="Yield Predictions")
+                with gr.Column(scale=1):
+                    counts_output = gr.Textbox(label="Individual Image Counts", lines=6)
+            
+            yield_button.click(
+                fn=yield_prediction,
+                inputs=[
+                    yield_image1, yield_image2, yield_image3,
+                    model_selector, countgd_label,
+                    productive_branches_input, total_trees_input
+                ],
+                outputs=[yield_results, counts_output]
+            )
 
 if __name__ == "__main__":
     demo.launch(share=False, allowed_paths=[str(config.SAMPLE_IMAGES_DIR)])
