@@ -7,8 +7,6 @@ import config  # Ensures paths are set up correctly
 def load_yolov5_model(ckpt_path):
     """Load a Yolov5 checkpoint model and return it. """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # Use the local yolov5 repo directory so torch.hub can find hubconf.py
-    #model = torch.hub.load(str(config.YOLOV5_DIR), 'custom', path=str(ckpt_path), force_reload=False, source='local')
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(ckpt_path))  # local model
     model.to(device)
     return model
