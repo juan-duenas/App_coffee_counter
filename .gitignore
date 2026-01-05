@@ -2,10 +2,8 @@
 /.vscode/
 .gradio
 
-/data/
+/data/raw/
 /nbooks/
-/models/
-/yolov5/
 
 .env
 __pycache__
