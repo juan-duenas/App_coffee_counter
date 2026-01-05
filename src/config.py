@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 
 # Define the root directory of the project
 ROOT_DIR = Path(__file__).resolve().parent.parent

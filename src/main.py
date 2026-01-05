@@ -15,13 +15,5 @@ def main():
     else:
         print("local croppie checkpoint directory not found, or is not a directory")
 
-    # Check if yolov5 repo is downloaded locally and is in root
-    if config.YOLOV5_DIR.exists() and config.YOLOV5_DIR.is_dir():
-        print("\u2713 local copy of YOLO v5 repo was found")
-    else:
-        print("A local copy of YOLO v5 repo was not found in the root directory.")
-
-
-
 if __name__ == "__main__":
     main()
