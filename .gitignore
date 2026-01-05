@@ -1,11 +1,11 @@
 .venv/
-/.vscode/
-.gradio
-
-/data/raw/
-/nbooks/
-
 .env
-__pycache__
+.vscode/
+.gradio/
 
+data/raw/
+nbooks/
 *.ipynb
+
+__pycache__/
+
