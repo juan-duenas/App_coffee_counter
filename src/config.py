@@ -7,7 +7,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / 'data'
 
 # Path to sample images
-SAMPLE_IMAGES_DIR = DATA_DIR / 'expls_croppie'
+SAMPLE_IMAGES_DIR = DATA_DIR / 'samples'
 
 # Path to the models folder
 MODELS_DIR = ROOT_DIR / 'models'
