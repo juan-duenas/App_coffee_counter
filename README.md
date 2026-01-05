@@ -8,8 +8,6 @@ A classic CNN approach to count coffee berries.
 
 This CNN was trained using a YOLOv8 architecture with a focus on Arabica coffee (*Coffea arabica* L.) cultivars. Further training details are provided in this publication. This demo uses a similar CNN, which was trained on [v5](https://github.com/ultralytics/yolov5) of YOLO, whose checkpoints are available [here](https://github.com/j-river1/Croppie).
 
-**Attention!**: Croppie's correct behaviour depends on functions from YOLOv5. If you want to run this UI locally, clone a copy of YOLOv5 repo and change the paths in the `config.py` file if necessary.
-
 ## CountGD remix.
 Applying a general-purpose counting model to a specific task.
 
