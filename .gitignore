@@ -3,8 +3,10 @@
 .vscode/
 .gradio/
 
-data/raw/
+data/
+models/
 nbooks/
+
 *.ipynb
 
 __pycache__/
