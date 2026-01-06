@@ -1,36 +1,42 @@
-import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-import config  # Ensures paths are set up correctly
+from huggingface_hub import hf_hub_download
+from ultralytics import YOLO
 
-def load_yolov5_model(ckpt_path):
-    """Load a Yolov5 checkpoint model and return it. """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(ckpt_path))  # local model
-    model.to(device)
-    return model
+# Load the YOLOv8 model from Hugging Face once at module level
+_model = None
+
+def load_yolov8_model():
+    """Load the YOLOv8 model from Hugging Face and return it."""
+    global _model
+    if _model is None:
+        # Download the model weights from Hugging Face
+        model_path = hf_hub_download(
+            repo_id="rgautroncgiar/croppie_coffee_ug",
+            filename="model_v3_202402021.pt"
+        )
+        _model = YOLO(model_path)
+    return _model
 
 def infer_2_app(input_img):
     """
-    Performs inference on the input image tensor using the loaded model.
-    then converts model inference results to a Gradio-compatible format."""
+    Performs inference on the input image using the YOLOv8 model.
+    Returns model inference results in a Gradio-compatible format."""
     
     # 1st. Load model and print success message
-    model = load_yolov5_model(config.YOLOV5_CKPT_PATH)
+    model = load_yolov8_model()
     print("Model loaded successfully.")
 
     # 2nd. Model inference
-    #img_size = 640  # Model input size
-    model.eval()
-    with torch.no_grad():
-        #results = model(input_img, img_size)
-        results = model(input_img)
-    # 3rd. Convert pred image to Gradio-compatible format
-    output_img = Image.fromarray(results.render()[0])
+    results = model(input_img)
+    
+    # 3rd. Convert prediction image to Gradio-compatible format
+    # YOLOv8 uses plot() to render results on the image
+    output_img = Image.fromarray(results[0].plot()[:, :, ::-1])  # BGR to RGB
 
-    # 3rd. Extract detection results for summary
-    detections_tensor = results.pred[0]
+    # 4th. Extract detection results for summary
+    boxes = results[0].boxes
 
     # Initialize variables for summary
     total_detections = 0
@@ -39,10 +45,10 @@ def infer_2_app(input_img):
     # Extract confidence values for histogram
     confidence_values = []
     
-    if detections_tensor is not None and len(detections_tensor) > 0:
-        total_detections = len(detections_tensor)
-        # Confidence scores are typically at index 4 of each detection [x1, y1, x2, y2, conf, cls]
-        confidence_values = detections_tensor[:, 4].cpu().numpy()
+    if boxes is not None and len(boxes) > 0:
+        total_detections = len(boxes)
+        # Get confidence scores from boxes
+        confidence_values = boxes.conf.cpu().numpy()
         sum_confidences = np.sum(confidence_values)
 
     average_confidence = sum_confidences / total_detections if total_detections > 0 else 0.0

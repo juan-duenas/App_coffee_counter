@@ -6,7 +6,7 @@ This UI features two computer vision models that can estimate coffee yield based
 
 Croppie is a CNN trained specifically to count coffee berries on branches.
 
-Croppie was trained using a YOLOv8 architecture with a focus on Arabica coffee (*Coffea arabica* L.) cultivars. Further training details are provided in this [publication]( https://doi.org/10.34133/plantphenomics.0165). This demo uses a similar CNN, which was trained on [v5](https://github.com/ultralytics/yolov5) of YOLO. The checkpoints for that model are available in this repository under the folde models/ or in the original [repository](https://github.com/j-river1/Croppie).
+Croppie was trained using a YOLOv8 architecture with a focus on Arabica coffee (*Coffea arabica* L.) cultivars. Further training details are provided in this [publication]( https://doi.org/10.34133/plantphenomics.0165). There pre trained model is available at [Hugging Face](https://huggingface.co/rgautroncgiar/croppie_coffee_ug)
 
 ## CountGD remix.
 Applying a general-purpose counting model to a specific task.
