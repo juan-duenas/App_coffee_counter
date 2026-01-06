@@ -7,7 +7,7 @@ from countgd import countgd, draw_boxes_on_image, draw_polygon_preview, apply_po
 
 def get_count_from_croppie(pil_image):
     """
-    Run Croppie (YOLOv5) inference and return the detection count.
+    Run Croppie (YOLOv8) inference and return the detection count.
     """
     if pil_image is None:
         return 0
